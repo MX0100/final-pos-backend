@@ -1,0 +1,30 @@
+name: finalpos
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: final_pos
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: final_pos
+      PRODUCTS_API_BASE: http://backend:3000
+    ports:
+      - '3000:3000'
+    command: ['node', 'dist/main.js']
+
+volumes:
+  pgdata: {}
