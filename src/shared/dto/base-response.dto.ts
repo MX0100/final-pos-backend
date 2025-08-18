@@ -37,12 +37,7 @@ export class ApiResponseDto<T = any> {
 
   @ApiPropertyOptional({
     description: 'Additional metadata',
-    example: {
-      timestamp: '2024-01-15T10:30:00.000Z',
-      page: 1,
-      limit: 10,
-      total: 100,
-    },
+    example: undefined,
     additionalProperties: true,
   })
   meta?: {

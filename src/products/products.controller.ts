@@ -5,7 +5,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { BatchReservationRequestDto, BatchReservationResponseDto } from '../shared/dto/index';
 import { Product } from './product.entity';
-import { DeleteResponseDto, SingleResourceResponseDto, BatchOperationResponseDto, PaginatedResponseDto, SimpleSuccessResponseDto } from '../shared/dto';
+import { DeleteResponseDto, SingleResourceResponseDto, PaginatedResponseDto, SimpleSuccessResponseDto } from '../shared/dto';
+import { BatchCreateProductsResponseDto } from './dto/batch-create-products.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { BatchCreateProductsDto } from './dto/batch-create-products.dto';
 
@@ -36,15 +37,15 @@ export class ProductsController {
   @ApiResponse({
     status: 201,
     description: 'Batch creation completed (check results for individual success/failure)',
-    type: BatchOperationResponseDto,
+    type: BatchCreateProductsResponseDto,
   })
-  batchCreate(@Body() dto: BatchCreateProductsDto): Promise<BatchOperationResponseDto<Product>> {
+  batchCreate(@Body() dto: BatchCreateProductsDto): Promise<BatchCreateProductsResponseDto> {
     return this.productsService.batchCreate(dto);
   }
 
   @Get()
   @ApiOperation({
-    summary: 'List products with pagination and filtering',
+    summary: 'List products with pagination and filtering by category',
     description: 'Get a paginated list of products with optional category filtering',
   })
   @ApiResponse({
