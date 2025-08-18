@@ -201,6 +201,17 @@ export class ProductsService {
     const existingResponse = await this.findOne(id);
     const existing = existingResponse.data;
 
+    // Check for name uniqueness if name is being updated
+    if (input.name !== undefined && input.name !== existing.name) {
+      const duplicateProduct = await this.productRepository.findOne({
+        where: { name: input.name },
+      });
+
+      if (duplicateProduct) {
+        throw new BadRequestException(`Product with name '${input.name}' already exists`);
+      }
+    }
+
     if (input.name !== undefined) existing.name = input.name;
     if (input.description !== undefined) existing.description = input.description;
     if (input.image !== undefined) existing.image = input.image;
