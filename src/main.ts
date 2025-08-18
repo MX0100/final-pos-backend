@@ -13,22 +13,19 @@ async function bootstrap() {
     exclude: ['health'],
   });
 
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-
   app.use(
     helmet({
-      contentSecurityPolicy: isDevelopment
-        ? false
-        : {
-            directives: {
-              defaultSrc: ["'self'"],
-              styleSrc: ["'self'", "'unsafe-inline'"],
-              scriptSrc: ["'self'"],
-              imgSrc: ["'self'", 'data:'],
-            },
-          },
-
-      hsts: !isDevelopment,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:'],
+          fontSrc: ["'self'", 'data:'],
+          connectSrc: ["'self'", 'blob:'],
+        },
+      },
+      hsts: true,
     }),
   );
 
@@ -50,7 +47,7 @@ async function bootstrap() {
       exceptionFactory: (errors) => {
         const formattedErrors = errors.map((error) => ({
           field: error.property,
-          value: error.value,
+          value: error.value as unknown,
           constraints: error.constraints,
           message: Object.values(error.constraints || {}).join(', '),
         }));
@@ -58,7 +55,7 @@ async function bootstrap() {
           message: 'Validation failed',
           errors: formattedErrors,
           statusCode: 400,
-        } as any);
+        });
       },
     }),
   );
@@ -68,6 +65,7 @@ async function bootstrap() {
     .setDescription('REST API for products and shopping carts with partial success support.')
     .setVersion('1.0.0')
     .addServer('/', 'API v1')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

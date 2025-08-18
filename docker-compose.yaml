@@ -6,25 +6,52 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: final_pos
-    ports:
-      - '5432:5432'
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
-    build: .
+    build:
+      context: .
+      target: runner
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASS: postgres
       DB_NAME: final_pos
-      PRODUCTS_API_BASE: http://backend:3000
     ports:
       - '3000:3000'
-    command: ['node', 'dist/main.js']
 
-volumes:
-  pgdata: {}
+  test:
+    build:
+      context: .
+      target: tester
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: final_pos
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: >
+      /bin/sh -c "
+      echo 'Waiting for postgres...' &&
+      until nc -z postgres 5432; do
+        sleep 1;
+      done &&
+      echo 'PostgreSQL is ready!' &&
+      npx jest --config ./test/jest-e2e.json --runInBand --detectOpenHandles --testNamePattern='Products Optimistic Lock'
+      "
+    profiles:
+      - test
