@@ -4,11 +4,12 @@ import { DeepPartial, Repository, FindOptionsWhere } from 'typeorm';
 import { Product } from './product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { BatchReservationRequestDto, BatchReservationResponseDto, ReservationResultDto } from '../shared/dto/batch-reservation.dto';
+import { BatchReservationRequestDto, BatchReservationResponseDto, ReservationResultDto } from './dto/batch-reservation.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
-import { DeleteResponseDto, SingleResourceResponseDto, BatchOperationResponseDto, PaginatedResponseDto, SimpleSuccessResponseDto } from '../shared/dto';
+import { DeleteResponseDto, SingleResourceResponseDto, PaginatedResponseDto, SimpleSuccessResponseDto } from '../shared/dto';
+import { BatchCreateProductsResponseDto } from './dto/batch-create-products.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { BatchCreateProductsDto } from './dto/batch-create-products.dto';
 
@@ -45,7 +46,7 @@ export class ProductsService {
     };
   }
 
-  async batchCreate(dto: BatchCreateProductsDto): Promise<BatchOperationResponseDto<Product>> {
+  async batchCreate(dto: BatchCreateProductsDto): Promise<BatchCreateProductsResponseDto> {
     const successful: Product[] = [];
     const failed: Array<{ input: any; error: { code: string; message: string } }> = [];
 
@@ -103,20 +104,20 @@ export class ProductsService {
 
     const successRate = Math.round((successCount / dto.products.length) * 100);
 
-    return {
-      success: overallSuccess,
-      data: {
-        successful,
-        failed,
-      },
-      meta: {
-        total: dto.products.length,
-        successful: successCount,
-        failed: failureCount,
-        successRate,
-        timestamp: new Date().toISOString(),
-      },
+    const response = new BatchCreateProductsResponseDto();
+    response.success = overallSuccess;
+    response.data = {
+      successful,
+      failed,
     };
+    response.meta = {
+      total: dto.products.length,
+      successful: successCount,
+      failed: failureCount,
+      successRate,
+      timestamp: new Date().toISOString(),
+    };
+    return response;
   }
 
   async findAll(query: ProductQueryDto): Promise<PaginatedResponseDto<Product>> {
