@@ -1,13 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SuccessEnumValues } from '../enums/success.enum';
 
-/**
- * Standard API response structure
- */
 export class ApiResponseDto<T = any> {
   @ApiProperty({
     description: 'Operation result status',
     example: true,
-    enum: [true, false, 'partial'],
+    enum: SuccessEnumValues,
   })
   success!: boolean | 'partial';
 
@@ -22,9 +20,9 @@ export class ApiResponseDto<T = any> {
     items: {
       type: 'object',
       properties: {
-        code: { type: 'string', example: 'VALIDATION_ERROR' },
-        message: { type: 'string', example: 'Field validation failed' },
-        target: { type: 'string', example: 'field_name' },
+        code: { type: 'string' },
+        message: { type: 'string' },
+        target: { type: 'string' },
       },
     },
     example: undefined,

@@ -1,0 +1,384 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Products API",
+    "description": "Product Inventory Management API Service",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "email": "support@example.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development Environment"
+    },
+    {
+      "url": "https://api.example.com",
+      "description": "Production Environment"
+    }
+  ],
+  "paths": {
+    "/products/{id}/stock/adjust": {
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Adjust Single Product Stock",
+        "description": "Adjust the stock quantity of a specific product",
+        "operationId": "productsControllerAdjustStockV1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Product ID",
+            "schema": {
+              "type": "string",
+              "example": "prod_123456"
+            }
+          },
+          {
+            "name": "delta",
+            "in": "query",
+            "required": true,
+            "description": "Stock adjustment quantity (positive for increase, negative for decrease)",
+            "schema": {
+              "type": "string",
+              "example": "-5"
+            }
+          },
+          {
+            "name": "opId",
+            "in": "query",
+            "required": false,
+            "description": "Operation ID for tracking",
+            "schema": {
+              "type": "string",
+              "example": "op_789"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock adjustment successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockAdjustmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Insufficient stock or version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/batch-reservation": {
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Batch Adjust Product Stock",
+        "description": "Batch adjust stock quantities for multiple products with transaction support",
+        "operationId": "productsControllerBatchReservationV1",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchReservationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch stock adjustment successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchStockAdjustmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Partial or complete insufficient stock or version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "StockAdjustmentResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status",
+            "example": true
+          },
+          "productId": {
+            "type": "string",
+            "description": "Product ID",
+            "example": "prod_123456"
+          },
+          "newStock": {
+            "type": "integer",
+            "description": "Updated stock quantity",
+            "example": 95
+          },
+          "version": {
+            "type": "integer",
+            "description": "Product version (optimistic lock)",
+            "example": 5
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message (only returned on failure)",
+            "example": "Insufficient stock"
+          }
+        },
+        "required": [
+          "success",
+          "productId",
+          "newStock"
+        ]
+      },
+      "BatchStockAdjustmentResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Overall operation success status",
+            "example": true
+          },
+          "results": {
+            "type": "array",
+            "description": "Individual product adjustment results",
+            "items": {
+              "$ref": "#/components/schemas/StockAdjustmentResult"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "description": "Overall error messages",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Batch operation failed"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "results"
+        ]
+      },
+      "StockAdjustmentResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/StockAdjustmentResult"
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message",
+            "example": "Stock adjustment successful"
+          }
+        }
+      },
+      "BatchStockAdjustmentResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status",
+            "example": true
+          },
+          "results": {
+            "type": "array",
+            "description": "Individual product adjustment results",
+            "items": {
+              "$ref": "#/components/schemas/StockAdjustmentResult"
+            }
+          },
+          "message": {
+            "type": "string",
+            "description": "Response message",
+            "example": "Batch stock adjustment successful"
+          }
+        }
+      },
+      "BatchReservationRequest": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "List of products to adjust",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "description": "Product ID",
+                  "example": "prod_123456"
+                },
+                "qtyDelta": {
+                  "type": "integer",
+                  "description": "Stock adjustment quantity (positive for increase, negative for decrease)",
+                  "example": -5
+                },
+                "opId": {
+                  "type": "string",
+                  "description": "Operation ID for tracking",
+                  "example": "op_789"
+                }
+              },
+              "required": [
+                "productId",
+                "qtyDelta"
+              ]
+            }
+          },
+          "allOrNothing": {
+            "type": "boolean",
+            "description": "Enable transactional operation (all success or all failure)",
+            "default": false,
+            "example": true
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Operation success status",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Insufficient stock"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error type",
+            "example": "INSUFFICIENT_STOCK"
+          },
+          "statusCode": {
+            "type": "integer",
+            "description": "HTTP status code",
+            "example": 400
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key authentication"
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Products",
+      "description": "Product inventory related operations"
+    }
+  ]
+}

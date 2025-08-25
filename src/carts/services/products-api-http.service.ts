@@ -1,32 +1,58 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { IProductService, StockAdjustmentResult, BatchStockAdjustmentResult } from '../interfaces/product-service.port';
-import { ProductsApi, Configuration } from '../../generated/products';
+import { ProductsApi, Configuration } from '../../generated';
+
+interface ProductApiResponse {
+  data?: {
+    stock?: number;
+    version?: number;
+  };
+}
+
+interface BatchReservationApiResponse {
+  results?: Array<{
+    status?: string;
+    productId?: string;
+    availableStock?: number;
+    version?: number;
+    error?: string;
+  }>;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
 
 @Injectable()
 export class HttpProductService implements IProductService {
   private readonly productsApi: ProductsApi;
 
   constructor(private readonly http: HttpService) {
-    // Reuse Nest HttpService's axios instance to inherit timeouts/interceptors
-    const config = new Configuration();
-    // basePath controls host; path already contains /api/v1
-    const basePath = process.env.PRODUCTS_API_BASE || 'http://localhost:3000';
-    this.productsApi = new ProductsApi(config, basePath, this.http.axiosRef);
+    const config = new Configuration({
+      basePath: process.env.PRODUCTS_API_BASE || 'http://localhost:3000/api/v1',
+    });
+    this.productsApi = new ProductsApi(config, config.basePath, this.http.axiosRef);
   }
 
   async adjustStock(productId: string, delta: number, opId?: string): Promise<StockAdjustmentResult> {
     try {
-      const resp = await this.productsApi.productsControllerAdjustStockV1({ id: productId, delta: String(delta) });
-      const body: any = resp.data;
+      const resp = await this.productsApi.productsControllerAdjustStockV1(productId, String(delta), opId);
+      const body = resp.data as ProductApiResponse;
       return {
         success: true,
         productId,
         newStock: body.data?.stock ?? 0,
         version: body.data?.version,
       };
-    } catch (err: any) {
-      const message: string = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      const message: string = error?.response?.data?.message ?? error?.message ?? 'Unknown error';
       return { success: false, productId, newStock: 0, error: message };
     }
   }
@@ -34,24 +60,23 @@ export class HttpProductService implements IProductService {
   async batchAdjustStock(items: Array<{ productId: string; qtyDelta: number; opId?: string }>, allOrNothing: boolean = false): Promise<BatchStockAdjustmentResult> {
     try {
       const resp = await this.productsApi.productsControllerBatchReservationV1({
-        batchReservationRequestDto: {
-          items: items.map((i) => ({ productId: i.productId, qtyDelta: i.qtyDelta, opId: i.opId })),
-          allOrNothing,
-        },
+        items: items.map((i) => ({ productId: i.productId, qtyDelta: i.qtyDelta, opId: i.opId })),
+        allOrNothing,
       });
 
-      const body: any = resp.data;
-      const results: StockAdjustmentResult[] = (body.results ?? []).map((r: any) => ({
+      const body = resp.data as BatchReservationApiResponse;
+      const results: StockAdjustmentResult[] = (body.results ?? []).map((r) => ({
         success: r.status === 'success',
-        productId: r.productId,
-        newStock: r.availableStock,
+        productId: r.productId ?? '',
+        newStock: r.availableStock ?? 0,
         version: r.version,
-        error: r.error,
+        error: r.error || (r.status !== 'success' ? r.status : undefined),
       }));
 
       return { success: true, results, errors: [] };
-    } catch (err: any) {
-      const message: string = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      const message: string = error?.response?.data?.message ?? error?.message ?? 'Unknown error';
       return { success: false, results: [], errors: [message] };
     }
   }

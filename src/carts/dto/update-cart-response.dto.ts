@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ApiResponseDto } from '../../shared/dto';
 import { CartDto } from './cart.dto';
 
@@ -12,11 +12,9 @@ export class CartUpdateDataDto {
   })
   blocked!: boolean;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Reason for blocking if blocked is true',
     enum: ['UNAVAILABLE_ITEMS_PRESENT', 'PARTIAL_QUANTITIES_PRESENT'],
-    required: false,
-    nullable: true,
   })
   blockReason?: 'UNAVAILABLE_ITEMS_PRESENT' | 'PARTIAL_QUANTITIES_PRESENT' | null;
 }

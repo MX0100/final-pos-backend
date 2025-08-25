@@ -36,7 +36,6 @@ export class CreateProductDto {
   @ApiProperty({
     description: 'Product category',
     maxLength: 64,
-    example: 'Electronics',
     required: false,
   })
   category?: string;

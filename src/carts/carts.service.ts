@@ -26,7 +26,6 @@ export class CartsService implements OnModuleInit {
     private readonly productService: IProductService,
   ) {}
 
-  // Map entity to API DTO to avoid circular serialization and align Swagger examples
   private toCartDto(cart: Cart): CartDto {
     return {
       id: cart.id,
@@ -77,8 +76,8 @@ export class CartsService implements OnModuleInit {
   }
 
   private async checkAndHandleExpiredCart(cart: Cart): Promise<Cart> {
-    if (cart.status === CartStatus.ACTIVE && cart.expiresAt && new Date() > cart.expiresAt) {
-      cart.status = CartStatus.EXPIRED;
+    if (cart.status === 'active' && cart.expiresAt && new Date() > cart.expiresAt) {
+      cart.status = 'expired';
 
       await this.releaseCartStock(cart.id, 'expire');
 
@@ -102,10 +101,7 @@ export class CartsService implements OnModuleInit {
       opId: `${reason}-cart-${cartId}-${item.productId}`,
     }));
 
-    // Best-effort release; ignore errors
-    try {
-      await this.productService.batchAdjustStock(releaseItems, false);
-    } catch {}
+    await this.productService.batchAdjustStock(releaseItems, false);
   }
 
   async processExpiredCarts(): Promise<{
@@ -133,7 +129,6 @@ export class CartsService implements OnModuleInit {
     return { processedCarts, releasedItems };
   }
 
-  // Run every 5 minutes to check for expired carts when enabled
   @Cron(CronExpression.EVERY_5_MINUTES)
   async scheduledProcessExpiredCarts(): Promise<void> {
     if (process.env.CART_EXPIRY_JOBS === 'disabled') return;
@@ -185,7 +180,6 @@ export class CartsService implements OnModuleInit {
     });
     if (!cart) throw new NotFoundException('Cart not found');
 
-    // Check and handle expiry before returning
     const checkedCart = await this.checkAndHandleExpiredCart(cart);
 
     const response = new UpdateCartResponseDto();
@@ -211,17 +205,12 @@ export class CartsService implements OnModuleInit {
       if (!item) throw new NotFoundException('Item not found');
 
       if (quantity === 0) {
-        // Remove item completely and restore all stock
         await manager.remove(item);
-        const result = await this.productService.adjustStock(productId, item.quantity);
-        if (!result.success) {
-          // ignore compensate failure
-        }
+        await this.productService.adjustStock(productId, item.quantity);
       } else {
         const delta = quantity - item.quantity;
 
         if (delta !== 0) {
-          // Reserve or release first, then persist, compensate on failure
           const stockResult = await this.productService.adjustStock(productId, -delta);
           if (!stockResult.success) {
             throw new BadRequestException(stockResult.error || 'Insufficient stock');
@@ -231,9 +220,7 @@ export class CartsService implements OnModuleInit {
             item.quantity = quantity;
             await manager.save(item);
           } catch (err) {
-            try {
               await this.productService.adjustStock(productId, delta);
-            } catch {}
             throw err;
           }
         }
@@ -268,7 +255,7 @@ export class CartsService implements OnModuleInit {
     cart = await this.checkAndHandleExpiredCart(cart);
 
     // Don't allow updates to expired or paid carts
-    if (cart.status !== CartStatus.ACTIVE) {
+    if (cart.status !== 'active') {
       throw new BadRequestException(`Cannot update cart with status: ${cart.status}`);
     }
 
@@ -287,16 +274,13 @@ export class CartsService implements OnModuleInit {
         const requestedQty = itemUpdate.quantity;
 
         let qtyDelta: number;
-        let finalQty: number;
 
         if (mode === 'add') {
           // Add mode: only add positive quantities
           if (requestedQty <= 0) continue;
-          finalQty = currentQty + requestedQty;
           qtyDelta = requestedQty; // Only reserve the new quantity
         } else {
           // Overwrite mode: set to exact quantity (can be 0 to remove)
-          finalQty = requestedQty;
           qtyDelta = requestedQty - currentQty; // Reserve the difference (can be negative to release)
         }
 
@@ -310,7 +294,7 @@ export class CartsService implements OnModuleInit {
       }
 
       // Step 3: Call batch reservation API if there are changes
-      let batchResult: any = null;
+      let batchResult: { success: boolean; results: Array<{ success: boolean; productId: string; newStock: number; error?: string }>; errors?: string[] } | null = null;
       if (reservationItems.length > 0) {
         try {
           batchResult = await this.productService.batchAdjustStock(reservationItems, false);

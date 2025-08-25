@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Patch } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CartsService } from './carts.service';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { UpdateCartResponseDto } from './dto/update-cart-response.dto';

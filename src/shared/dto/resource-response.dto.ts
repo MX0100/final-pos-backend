@@ -17,9 +17,6 @@ export class SingleResourceResponseDto<T = any> {
 
   @ApiPropertyOptional({
     description: 'Additional metadata',
-    example: {
-      timestamp: '2024-01-15T10:30:00.000Z',
-    },
   })
   meta?: {
     timestamp?: string;
@@ -44,9 +41,6 @@ export class SimpleSuccessResponseDto<T = any> {
 
   @ApiPropertyOptional({
     description: 'Additional metadata',
-    example: {
-      timestamp: '2024-01-15T10:30:00.000Z',
-    },
   })
   meta?: {
     timestamp?: string;

@@ -13,7 +13,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
 
-    // Handle known HTTP exceptions
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse() as string | { message?: unknown };
@@ -30,13 +29,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Simple logging
     this.logger.error(`${request.method} ${request.url} - ${status} - ${message}`);
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR && exception instanceof Error) {
       this.logger.error(exception.stack);
     }
 
-    // Simple standardized response
     response.status(status).json({
       success: false,
       data: null,

@@ -6,3 +6,6 @@ export * from './resource-response.dto';
 
 // Paginated responses
 export * from './paginated-response.dto';
+
+// Enums
+export * from '../enums/success.enum';

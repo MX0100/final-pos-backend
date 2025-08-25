@@ -1,13 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ApiResponseDto } from './base-response.dto';
 
-/**
- * Paginated response for list endpoints
- */
 export class PaginatedResponseDto<T = any> extends ApiResponseDto<T[]> {
+  @ApiProperty({
+    description: 'Operation result status',
+    example: true,
+    enum: [true, false, 'partial'],
+  })
+  declare success: boolean | 'partial';
+
   @ApiProperty({
     description: 'Paginated data array',
     type: 'array',
+    items: {
+      type: 'object',
+      additionalProperties: true,
+    },
+    example: [],
   })
   declare data: T[];
 
@@ -31,7 +40,5 @@ export class PaginatedResponseDto<T = any> extends ApiResponseDto<T[]> {
     totalPages: number;
     hasNext: boolean;
     hasPrev: boolean;
-    timestamp?: string;
-    [key: string]: any;
   };
 }
