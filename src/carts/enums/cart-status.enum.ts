@@ -1,6 +1,6 @@
 export enum CartStatus {
   ACTIVE = 'active',
-  EXPIRED = 'expired', 
+  EXPIRED = 'expired',
   PAID = 'paid',
 }
 

@@ -30,3 +30,9 @@ Thumbs.db
 
 # Misc
 .tmp/
+
+# Generated files
+src/generated/git_push.sh
+
+# Scripts
+scripts/

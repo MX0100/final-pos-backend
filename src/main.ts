@@ -85,7 +85,6 @@ async function bootstrap() {
     .setDescription('REST API for products and shopping carts with partial success support.')
     .setVersion('1.0.0')
     .addServer('/', 'API v1')
-    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

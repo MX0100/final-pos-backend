@@ -19,7 +19,7 @@ import { CartsModule } from './carts/carts.module';
       synchronize: true,
     }),
     ProductsModule,
-    CartsModule
+    CartsModule,
   ],
   controllers: [AppController],
   providers: [],

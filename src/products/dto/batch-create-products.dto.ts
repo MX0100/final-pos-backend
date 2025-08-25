@@ -1,9 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiExtraModels } from '@nestjs/swagger';
 import { IsArray, ValidateNested, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateProductDto } from './create-product.dto';
 import { ApiResponseDto } from '../../shared/dto/base-response.dto';
-import { Product } from '../product.entity';
+import { ProductDto } from './Product.dto';
 
 export class BatchCreateProductsDto {
   @IsArray()
@@ -38,59 +38,39 @@ export class BatchCreateProductsDto {
   products!: CreateProductDto[];
 }
 
-/**
- * Batch operation response for product creation
- */
-export class BatchCreateProductsResponseDto extends ApiResponseDto<{
-  successful: Product[];
-  failed: Array<{ input: CreateProductDto; error: { code: string; message: string } }>;
-}> {
-  @ApiProperty({
-    description: 'Batch product creation results',
-    type: 'object',
-    properties: {
-      successful: { type: 'array', description: 'Successfully created products' },
-      failed: {
-        type: 'array',
-        description: 'Failed products with error details',
-        items: {
-          type: 'object',
-          properties: {
-            input: { type: 'object', description: 'Original product data' },
-            error: {
-              type: 'object',
-              properties: {
-                code: { type: 'string' },
-                message: { type: 'string' },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  declare data: {
-    successful: Product[];
-    failed: Array<{ input: CreateProductDto; error: { code: string; message: string } }>;
-  };
+export class BatchErrorDto {
+  @ApiProperty() code!: string;
+  @ApiProperty() message!: string;
+}
 
-  @ApiProperty({
-    description: 'Batch operation summary',
-    type: 'object',
-    properties: {
-      total: { type: 'number', example: 10 },
-      successful: { type: 'number', example: 8 },
-      failed: { type: 'number', example: 2 },
-      successRate: { type: 'number', example: 80 },
-      timestamp: { type: 'string', format: 'date-time' },
-    },
-  })
-  declare meta: {
-    total: number;
-    successful: number;
-    failed: number;
-    successRate: number;
-    timestamp: string;
-    [key: string]: any;
-  };
+export class FailedItemDto {
+  @ApiProperty({ type: () => CreateProductDto })
+  input!: CreateProductDto;
+
+  @ApiProperty({ type: () => BatchErrorDto })
+  error!: BatchErrorDto;
+}
+
+export class BatchDataDto {
+  @ApiProperty({ type: () => [ProductDto], description: 'Successfully created products' })
+  successful!: ProductDto[];
+
+  @ApiProperty({ type: () => [FailedItemDto], description: 'Failed items with error details' })
+  failed!: FailedItemDto[];
+}
+
+export class BatchSummaryDto {
+  @ApiProperty() total!: number;
+  @ApiProperty() successful!: number;
+  @ApiProperty() failed!: number;
+  @ApiProperty() successRate!: number;
+}
+
+@ApiExtraModels(ProductDto, CreateProductDto, BatchErrorDto, FailedItemDto, BatchDataDto, BatchSummaryDto)
+export class BatchCreateProductsResponseDto extends ApiResponseDto<BatchDataDto> {
+  @ApiProperty({ type: () => BatchDataDto })
+  declare data: BatchDataDto;
+
+  @ApiProperty({ type: () => BatchSummaryDto })
+  declare meta: BatchSummaryDto;
 }

@@ -20,10 +20,11 @@ export class HttpLoggingInterceptor implements NestInterceptor {
         const duration = Date.now() - start;
         this.logger.log(`HTTP ${method} ${url} ${res.statusCode} ${duration}ms`);
       }),
-      catchError((err) => {
+      catchError((err: unknown) => {
         const duration = Date.now() - start;
-        const status = (err?.status as number) ?? res.statusCode ?? 500;
-        this.logger.error(`HTTP ${method} ${url} ${status} ${duration}ms - ${err?.message ?? 'Error'}`);
+        const error = err as { status?: number; message?: string };
+        const status = error?.status ?? res.statusCode ?? 500;
+        this.logger.error(`HTTP ${method} ${url} ${status} ${duration}ms - ${error?.message ?? 'Error'}`);
         throw err;
       }),
     );

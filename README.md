@@ -7,8 +7,8 @@ A TypeScript backend implementing Products and Carts with stock reservations, op
 - Products CRUD with optimistic stock adjustments
 - Carts with add/overwrite item operations and single-quantity updates
 - Stock reservation/release coordinated with cart mutations
-- 5-minute cart auto-expiry job; expired carts are marked (not deleted) for analytics; deletion releases stock
-- Decoupled product operations via DI token (`PRODUCT_SERVICE`), defaulting to an HTTP client using the generated API client under `src/generated/products`
+- 15-minute cart auto-expiry job; expired carts are marked (not deleted) for analytics; deletion releases stock
+- Decoupled product operations via DI token (`PRODUCT_SERVICE`), defaulting to an HTTP client using the generated API client under `src/generated`
 - Global HTTP logging interceptor, input validation, security headers, and response compression
 
 ### Architecture
@@ -16,6 +16,7 @@ A TypeScript backend implementing Products and Carts with stock reservations, op
 - Modules: `products`, `carts`, and cross-cutting `common` (interceptors)
 - Persistence: PostgreSQL + TypeORM (entities auto-loaded; sync enabled for development)
 - API Versioning: URI-based (`/api/v1`)
+- Swagger API docs are available at `/api/docs` when running the app.
 - Observability/Security: global HTTP logging interceptor, Helmet, and compression
 - Generated Client: `src/generated/products` consumed by `carts` via `HttpProductService`
 
@@ -99,17 +100,9 @@ npx @openapitools/openapi-generator-cli generate -c openapitools.json
 
 TypeORM is configured with `synchronize: true` for development. See the detailed schema and relations in `DATABASE-SCHEMA.md`.
 
-### Notable Endpoints
-
-- `GET /api/v1/carts/:cartId` – get cart by id
-- `POST /api/v1/carts/:cartId/items` – add items incrementally
-- `PUT /api/v1/carts/:cartId/items` – overwrite items (batch)
-- `PATCH /api/v1/carts/:cartId/items/:productId` – update a single item quantity
-- `POST /api/v1/products/reservations/batch` – batch stock reservation (cart operations)
-
 ### Operational Notes
 
-- Auto-expiry is executed every 5 minutes; set `CART_EXPIRY_JOBS=disabled` to turn it off
+- Auto-expiry is executed every 15 minutes; set `CART_EXPIRY_JOBS=disabled` to turn it off
 - Deleting a cart releases reserved stock immediately
 - Expired carts are kept for behavior analytics, with stock released
 

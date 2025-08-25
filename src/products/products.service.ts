@@ -1,33 +1,30 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository, FindOptionsWhere } from 'typeorm';
 import { Product } from './product.entity';
+import { ProductDto } from './dto/Product.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { BatchReservationRequestDto, BatchReservationResponseDto, ReservationResultDto } from './dto/batch-reservation.dto';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { AxiosError } from 'axios';
 import { DeleteResponseDto, SingleResourceResponseDto, PaginatedResponseDto, SimpleSuccessResponseDto } from '../shared/dto';
-import { BatchCreateProductsResponseDto } from './dto/batch-create-products.dto';
+import { BatchCreateProductsDto, BatchCreateProductsResponseDto } from './dto/batch-create-products.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
-import { BatchCreateProductsDto } from './dto/batch-create-products.dto';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-    private readonly http: HttpService,
   ) {}
 
   private get cartsBaseUrl(): string {
     return process.env.CARTS_API_BASE || 'http://localhost:3000';
   }
 
-  async create(input: CreateProductDto): Promise<SingleResourceResponseDto<Product>> {
+  async create(input: CreateProductDto): Promise<SingleResourceResponseDto<ProductDto>> {
+    const name = await this.assertNameAvailable(input.name);
     const partial: DeepPartial<Product> = {
-      name: input.name,
+      name: name,
       description: input.description,
       image: input.image,
       price: String(input.price),
@@ -39,34 +36,16 @@ export class ProductsService {
 
     return {
       success: true,
-      data: product,
-      meta: {
-        timestamp: new Date().toISOString(),
-      },
+      data: this.toProductDto(product),
     };
   }
 
   async batchCreate(dto: BatchCreateProductsDto): Promise<BatchCreateProductsResponseDto> {
-    const successful: Product[] = [];
-    const failed: Array<{ input: any; error: { code: string; message: string } }> = [];
+    const successful: ProductDto[] = [];
+    const failed: Array<{ input: CreateProductDto; error: { code: string; message: string } }> = [];
 
     for (const productInput of dto.products) {
       try {
-        const existingProduct = await this.productRepository.findOne({
-          where: { name: productInput.name },
-        });
-
-        if (existingProduct) {
-          failed.push({
-            input: productInput,
-            error: {
-              code: 'DUPLICATE_NAME',
-              message: `Product with name '${productInput.name}' already exists`,
-            },
-          });
-          continue;
-        }
-
         const productResponse = await this.create(productInput);
         successful.push(productResponse.data);
       } catch (error) {
@@ -115,12 +94,11 @@ export class ProductsService {
       successful: successCount,
       failed: failureCount,
       successRate,
-      timestamp: new Date().toISOString(),
     };
     return response;
   }
 
-  async findAll(query: ProductQueryDto): Promise<PaginatedResponseDto<Product>> {
+  async findAll(query: ProductQueryDto): Promise<PaginatedResponseDto<ProductDto>> {
     const { category, page = 1, limit = 10 } = query;
 
     const where: FindOptionsWhere<Product> = {};
@@ -147,7 +125,7 @@ export class ProductsService {
 
     return {
       success: true,
-      data: products,
+      data: products.map((product) => this.toProductDto(product)),
       meta: {
         page,
         limit,
@@ -155,13 +133,11 @@ export class ProductsService {
         totalPages,
         hasNext,
         hasPrev,
-        requestId: `find-products-${Date.now()}`,
-        timestamp: new Date().toISOString(),
       },
     };
   }
 
-  async findOne(identifier: string): Promise<SingleResourceResponseDto<Product>> {
+  async findOne(identifier: string): Promise<SingleResourceResponseDto<ProductDto>> {
     const entity = await this.productRepository.createQueryBuilder('product').where('product.id::text = :identifier', { identifier }).orWhere('product.name = :identifier', { identifier }).getOne();
 
     if (!entity) {
@@ -170,10 +146,7 @@ export class ProductsService {
 
     return {
       success: true,
-      data: entity,
-      meta: {
-        timestamp: new Date().toISOString(),
-      },
+      data: this.toProductDto(entity),
     };
   }
 
@@ -191,61 +164,35 @@ export class ProductsService {
     return {
       success: true,
       data: categories,
-      meta: {
-        timestamp: new Date().toISOString(),
-      },
     };
   }
 
-  async update(id: string, input: UpdateProductDto): Promise<SingleResourceResponseDto<Product>> {
+  async update(id: string, input: UpdateProductDto): Promise<SingleResourceResponseDto<ProductDto>> {
     const existingResponse = await this.findOne(id);
     const existing = existingResponse.data;
 
-    // Check for name uniqueness if name is being updated
     if (input.name !== undefined && input.name !== existing.name) {
-      const duplicateProduct = await this.productRepository.findOne({
-        where: { name: input.name },
-      });
-
-      if (duplicateProduct) {
-        throw new BadRequestException(`Product with name '${input.name}' already exists`);
-      }
+      const name = await this.assertNameAvailable(input.name);
+      existing.name = name;
     }
 
-    if (input.name !== undefined) existing.name = input.name;
     if (input.description !== undefined) existing.description = input.description;
     if (input.image !== undefined) existing.image = input.image;
     if (input.price !== undefined) existing.price = String(input.price);
     if (input.stock !== undefined) existing.stock = input.stock;
     if (input.category !== undefined) existing.category = input.category;
 
-    existing.updatedAt = new Date();
-
     const updated = await this.productRepository.save(existing);
 
     return {
       success: true,
-      data: updated,
-      meta: {
-        timestamp: new Date().toISOString(),
-      },
+      data: this.toProductDto(updated),
     };
   }
 
   async remove(id: string): Promise<DeleteResponseDto> {
     const productResponse = await this.findOne(id);
     const product = productResponse.data;
-
-    try {
-      await firstValueFrom(this.http.delete(`${this.cartsBaseUrl}/internal/products/${product.id}/cleanup`));
-    } catch (err: unknown) {
-      if (err instanceof AxiosError && err.response?.status === 404) {
-        // Cart service not found, ignore
-      } else {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        console.warn(`Failed to cleanup cart references for product ${product.id}:`, errorMsg);
-      }
-    }
 
     const deleteResult = await this.productRepository.delete({ id: product.id });
 
@@ -268,7 +215,7 @@ export class ProductsService {
     return response;
   }
 
-  async adjustStock(id: string, delta: number): Promise<SingleResourceResponseDto<Product>> {
+  async adjustStock(id: string, delta: number): Promise<SingleResourceResponseDto<ProductDto>> {
     if (!Number.isInteger(delta)) {
       throw new BadRequestException('Delta must be an integer');
     }
@@ -293,9 +240,8 @@ export class ProductsService {
 
     return {
       success: true,
-      data: result.product!,
+      data: this.toProductDto(result.product!),
       meta: {
-        timestamp: new Date().toISOString(),
         operation: 'single_stock_adjustment',
         deltaApplied: delta,
         version: result.product!.version,
@@ -458,7 +404,6 @@ export class ProductsService {
         const errorCode = err instanceof Error && 'code' in err ? String(err.code) : '';
         const errorName = err instanceof Error ? err.name : '';
 
-        // Detect optimistic lock conflicts
         const isOptimisticLockError =
           msg.includes('OptimisticLockVersionMismatchError') || msg.includes('version') || errorCode === 'ER_DUP_ENTRY' || errorName === 'OptimisticLockVersionMismatchError';
 
@@ -487,5 +432,38 @@ export class ProductsService {
       success: false,
       error: 'Unexpected error in stock adjustment',
     };
+  }
+
+  private toProductDto(product: Product): ProductDto {
+    return {
+      id: product.id,
+      name: product.name,
+      description: product.description ?? undefined,
+      image: product.image,
+      price: product.price,
+      stock: product.stock,
+      category: product.category ?? undefined,
+      version: product.version,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    };
+  }
+
+  private async assertNameAvailable(name: string): Promise<string> {
+    const nameTrimmed = name.trim();
+    if (nameTrimmed.length === 0) {
+      throw new BadRequestException({
+        code: 'INVALID_NAME',
+        message: 'Product name cannot be empty or whitespace',
+      });
+    }
+    const exists = (await this.productRepository.exists?.({ where: { name: nameTrimmed } })) ?? !!(await this.productRepository.findOne({ where: { name: nameTrimmed } }));
+    if (exists) {
+      throw new ConflictException({
+        code: 'DUPLICATE_NAME',
+        message: `Product with name '${nameTrimmed}' already exists`,
+      });
+    }
+    return nameTrimmed;
   }
 }

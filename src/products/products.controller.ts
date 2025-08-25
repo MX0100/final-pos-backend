@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './product.entity';
+import { ProductDto } from './dto/Product.dto';
 import { DeleteResponseDto, SingleResourceResponseDto, PaginatedResponseDto, SimpleSuccessResponseDto } from '../shared/dto';
 import { BatchReservationRequestDto, BatchReservationResponseDto } from './dto/batch-reservation.dto';
 import { BatchCreateProductsResponseDto } from './dto/batch-create-products.dto';
@@ -25,7 +25,7 @@ export class ProductsController {
     description: 'Product created successfully',
     type: SingleResourceResponseDto,
   })
-  create(@Body() input: CreateProductDto): Promise<SingleResourceResponseDto<Product>> {
+  create(@Body() input: CreateProductDto): Promise<SingleResourceResponseDto<ProductDto>> {
     return this.productsService.create(input);
   }
 
@@ -53,7 +53,7 @@ export class ProductsController {
     description: 'Products retrieved successfully',
     type: PaginatedResponseDto,
   })
-  findAll(@Query() query: ProductQueryDto): Promise<PaginatedResponseDto<Product>> {
+  findAll(@Query() query: ProductQueryDto): Promise<PaginatedResponseDto<ProductDto>> {
     return this.productsService.findAll(query);
   }
 
@@ -81,7 +81,7 @@ export class ProductsController {
     description: 'Product retrieved successfully',
     type: SingleResourceResponseDto,
   })
-  findOne(@Param('identifier') identifier: string): Promise<SingleResourceResponseDto<Product>> {
+  findOne(@Param('identifier') identifier: string): Promise<SingleResourceResponseDto<ProductDto>> {
     return this.productsService.findOne(identifier);
   }
 
@@ -95,7 +95,7 @@ export class ProductsController {
     description: 'Product updated successfully',
     type: SingleResourceResponseDto,
   })
-  update(@Param('id') id: string, @Body() input: UpdateProductDto): Promise<SingleResourceResponseDto<Product>> {
+  update(@Param('id') id: string, @Body() input: UpdateProductDto): Promise<SingleResourceResponseDto<ProductDto>> {
     return this.productsService.update(id, input);
   }
 
@@ -113,7 +113,7 @@ export class ProductsController {
     return this.productsService.remove(id);
   }
 
-  @Post(':id/adjust-stock/:delta')
+  @Post(':id/stock/adjust')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Adjust single product stock (Cart quantity adjustment)',
@@ -124,11 +124,11 @@ export class ProductsController {
     description: 'Stock adjusted successfully',
     type: SingleResourceResponseDto,
   })
-  adjustStock(@Param('id') id: string, @Param('delta') delta: string): Promise<SingleResourceResponseDto<Product>> {
+  adjustStock(@Param('id') id: string, @Query('delta') delta: string): Promise<SingleResourceResponseDto<ProductDto>> {
     return this.productsService.adjustStock(id, Number(delta));
   }
 
-  @Post('reservations/batch')
+  @Post('batch-reservation')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Batch stock reservation (Cart operations)',

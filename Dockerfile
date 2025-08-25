@@ -12,7 +12,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=base /app/dist ./dist
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
 
 FROM base AS tester
 ENV NODE_ENV=test
